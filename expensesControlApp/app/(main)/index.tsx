@@ -1,6 +1,6 @@
 import Example from "@/src/components/signout";
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-expo";
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import React from "react";
 import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
 
@@ -10,10 +10,7 @@ export default function Page() {
   return (
     <View style={styles.container}>
       <SignedIn>
-        <Text style={styles.welcomeText}>
-          Bem-vindo, {user?.emailAddresses[0].emailAddress}!
-        </Text>
-        <Example />
+        <Redirect href={"/(main)/code"} />
       </SignedIn>
       <SignedOut>
         <Text style={styles.title}>Faça login ou crie uma conta</Text>
