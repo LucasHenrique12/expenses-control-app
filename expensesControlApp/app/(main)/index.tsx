@@ -1,124 +1,74 @@
-  import { Text, View,  StyleSheet, KeyboardAvoidingView, Platform,TextInput, TouchableOpacity, Keyboard } from 'react-native';
-  import Expenses from '../../src/components/expenses';
-  import React,{ useState } from 'react';
-  import { Link } from 'expo-router';
+import Example from "@/src/components/signout";
+import { SignedIn, SignedOut, useUser } from "@clerk/clerk-expo";
+import { Link, Redirect } from "expo-router";
+import React from "react";
+import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
 
-  let nextId = 0;
-  export default function Index()  {
+export default function Page() {
+  const { user } = useUser();
 
-    const [expense,setExpense] = useState('');
-    const [expenseItems, setExpenseItems] = useState<string[]>([]);
+  return (
+    <View style={styles.container}>
+      <SignedIn>
+        <Redirect href={"/(main)/code"} />
+      </SignedIn>
+      <SignedOut>
+        <Text style={styles.title}>Faça login ou crie uma conta</Text>
+        <TouchableOpacity style={styles.button}>
+          <Link href="/(auth)/signIn" asChild>
+            <Text style={styles.buttonText}>Entrar</Text>
+          </Link>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.button, styles.signUpButton]}>
+          <Link href="/(auth)/signUp" asChild>
+            <Text style={[styles.buttonText, styles.signUpText]}>
+              Cadastrar
+            </Text>
+          </Link>
+        </TouchableOpacity>
+      </SignedOut>
+    </View>
+  );
+}
 
-    const handleAddExpense = () =>{
-    Keyboard.dismiss();
-    setExpenseItems([...expenseItems,expense]);
-    setExpense('');
-    }
-
-    
-
-    const paidExpense = (index: number)=> {
-      let itemsCopy = [...expenseItems];
-      itemsCopy.splice(index,1);
-      setExpenseItems(itemsCopy);
-    }
-    return (
-      <View style={styles.container}>
-        
-        <View style={styles.tasksWrapper}>
-        <Text style={styles.sectionTitle}>Gastos de Hoje</Text>
-        
-        <View style={styles.items}>
-          {
-            expenseItems.map((item, index) => {
-              return(
-                <TouchableOpacity key={index} onPress={()=> paidExpense(index)}>
-                  <Expenses  text={item} />
-                </TouchableOpacity>
-              
-              ) 
-          })
-          }
-          
-        </View>
-        </View>
-        
-        <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding": "height"}
-        style = {styles.writeTaskWrapper}>
-          <TextInput style ={styles.input} placeholder="Adicione novos gastos" value = {expense} onChangeText={text => setExpense(text)} />
-
-          <TouchableOpacity onPress={()=> handleAddExpense()}> 
-            <View style = {styles.addWrapper}>
-            <Text style={styles.addText}>+</Text>
-            </View>
-           
-          </TouchableOpacity> 
-        </KeyboardAvoidingView>
-          
-
-          </View>
-        
-
-      
-      
-    );
-  }
-
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#444',
-      borderColor:'#fff',
-      
-    },
-    addText:{},
-    
-
-    input:{
-      paddingVertical:15,
-      width:250,
-      paddingHorizontal: 15,
-      backgroundColor:'#fff',
-      borderRadius:60,
-      borderColor: '#C0C0C0',
-      borderWidth: 1,
-    },
-    tasksWrapper: {
-      backgroundColor: '#444',
-      paddingTop: 80,
-      paddingHorizontal:20,
-      
-    },
-    writeTaskWrapper:{
-      position: 'absolute',
-      bottom:60,
-      width:'100%',
-      flexDirection:'row',
-      justifyContent:'space-around',
-      alignItems:'center'
-    },
-    addWrapper:{
-      width:60,
-      height:60,
-      backgroundColor:'#FFF',
-      borderRadius:60,
-      justifyContent:'center',
-      alignItems:'center',
-      borderColor: '#C0C0C0',
-      borderWidth: 1,
-
-    },
-    sectionTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: '#fff',
-      
-      
-    },
-    items: {
-    marginTop: 30,
-    flexGrow:1,
-    
-    },
-  });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    padding: 20,
+  },
+  welcomeText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 20,
+    color: "#222",
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    marginVertical: 8,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  signUpButton: {
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#007AFF",
+  },
+  signUpText: {
+    color: "#007AFF",
+  },
+});
