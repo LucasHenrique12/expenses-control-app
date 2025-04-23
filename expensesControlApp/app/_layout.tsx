@@ -1,18 +1,58 @@
-import { useEffect } from 'react';
-import { ClerkProvider,ClerkLoaded,useAuth
- } from '@clerk/clerk-expo';
-import { TokenCache } from '@clerk/clerk-expo/dist/cache';
-import { useRoute } from '@react-navigation/native';
-import { Slot, Stack,useRouter,useSegments } from 'expo-router';
-import * as SecureStore from 'expo-secure-store'
-import { Platform } from 'react-native';
-import { tokenCache } from '@/src/cache';
+import { useEffect } from "react";
+import { ClerkProvider, ClerkLoaded } from "@clerk/clerk-expo";
+import { tokenCache } from "@/src/cache";
+import { Slot } from "expo-router";
+
+import { Suspense } from "react";
+import { ActivityIndicator, View, Text } from "react-native";
+import { SQLiteProvider, openDatabaseSync } from "expo-sqlite";
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
+import migrations from "@/src/drizzle/migrations";
+import { DATABASE_NAME } from "@/src/db/schema";
 
 export default function RootLayout() {
-  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!
+  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
   if (!publishableKey) {
-    throw new Error('Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env')
+    throw new Error("Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env");
+  }
+
+  const expoDb = openDatabaseSync(DATABASE_NAME);
+  const db = drizzle(expoDb);
+  const { success, error } = useMigrations(db, migrations);
+
+  return (
+    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+      <ClerkLoaded>
+        <Suspense fallback={<ActivityIndicator size="large" />}>
+          <SQLiteProvider
+            databaseName={DATABASE_NAME}
+            options={{ enableChangeListener: true }}
+            useSuspense
+          >
+            <Slot />
+          </SQLiteProvider>
+        </Suspense>
+      </ClerkLoaded>
+    </ClerkProvider>
+  );
+}
+
+/* import { useEffect } from "react";
+import { ClerkProvider, ClerkLoaded, useAuth } from "@clerk/clerk-expo";
+import { TokenCache } from "@clerk/clerk-expo/dist/cache";
+import { useRoute } from "@react-navigation/native";
+import { Slot, Stack, useRouter, useSegments } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
+import { tokenCache } from "@/src/cache";
+
+export default function RootLayout() {
+  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+
+  if (!publishableKey) {
+    throw new Error("Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env");
   }
 
   return (
@@ -21,64 +61,6 @@ export default function RootLayout() {
         <Slot />
       </ClerkLoaded>
     </ClerkProvider>
-  )
-}
-/* const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!
-
-const initiallayout = () =>{
-  const {isLoaded,isSignedIn} = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
-  useEffect(() => {
-    if(!isLoaded) return;
-
-  },[isSignedIn])
-  return <Slot/>
-}
-const createTokenCache = (): TokenCache => {
-  return {
-    getToken: async (key: string) => {
-      try {
-        const item = await SecureStore.getItemAsync(key)
-        if (item) {
-          console.log(`${key} was used 🔐 \n`)
-        } else {
-          console.log('No values stored under key: ' + key)
-        }
-        return item
-      } catch (error) {
-        console.error('secure store get item error: ', error)
-        await SecureStore.deleteItemAsync(key)
-        return null
-      }
-    },
-    saveToken: (key: string, token: string) => {
-      return SecureStore.setItemAsync(key, token)
-    },
-  }
-}
-
-// SecureStore is not supported on the web
-export const tokenCache = Platform.OS !== 'web' ? createTokenCache() : undefined
-
-export default function RootLayout(){
-  return (
-    <ClerkProvider  publishableKey = {publishableKey} tokenCache={tokenCache}>
-     <ClerkLoaded>
-        <Slot />
-      </ClerkLoaded>
-    </ClerkProvider>
-  )
-}
-
- */
-/* export default function RootLayout() {
-  return (
-    <Stack>
-      <Stack.Screen name='login' options={{headerShown:false }}/>
-      <Stack.Screen name='(auth)' options={{headerShown:false }}/>
-      <Stack.Screen name="(main)" options={{headerShown:false }}/>
-    </Stack>
   );
 }
  */

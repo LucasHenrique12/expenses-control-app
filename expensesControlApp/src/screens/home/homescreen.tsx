@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   TextInput,
@@ -14,19 +14,37 @@ import {
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import ExpenseItem from "@/src/components/expenseItem";
-import { expenses } from "@/src/model";
+import { useSQLiteContext } from "expo-sqlite";
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import * as schema from "@/src/db/schema";
+import { expensesTable } from "@/src/db/schema";
+import { eq } from "drizzle-orm";
+import uuid from "react-native-uuid";
 
 const ExpensesScreen: React.FC = () => {
+  const db = useSQLiteContext();
+  const drizzleDb = drizzle(db, { schema });
+
   const [expensesList, setExpensesList] = useState<
-    InstanceType<typeof expenses>[]
+    (typeof expensesTable.$inferSelect)[]
   >([]);
+
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [parcelas, setParcelas] = useState("");
   const [type, setType] = useState<"cartao" | "dinheiro">("cartao");
   const [modalVisible, setModalVisible] = useState(false);
 
-  const addExpense = () => {
+  const fetchExpenses = async () => {
+    const result = await drizzleDb.select().from(expensesTable);
+    setExpensesList(result);
+  };
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const addExpense = async () => {
     if (!title.trim() || !amount || !parcelas) {
       showAlert("Erro", "Preencha todos os campos corretamente!");
       return;
@@ -45,20 +63,36 @@ const ExpensesScreen: React.FC = () => {
       return;
     }
 
-    const newExpense = new expenses(
-      title.trim(),
-      parsedAmount,
-      parsedParcelas,
-      type
-    );
+    try {
+      await drizzleDb.insert(expensesTable).values({
+        id: uuid.v4().toString(),
+        title: title.trim(),
+        amount: parsedAmount,
+        parcelas: parsedParcelas,
+        type,
+      });
 
-    setExpensesList((prev) => [...prev, newExpense]);
+      await fetchExpenses();
+      setTitle("");
+      setAmount("");
+      setParcelas("");
+      Keyboard.dismiss();
+      setModalVisible(false);
+    } catch (err) {
+      showAlert("Erro", "Não foi possível salvar o gasto.");
+      console.error(err);
+    }
+  };
 
-    setTitle("");
-    setAmount("");
-    setParcelas("");
-    Keyboard.dismiss();
-    setModalVisible(false);
+  const deleteExpense = async (id: string) => {
+    try {
+      await drizzleDb.delete(expensesTable).where(eq(expensesTable.id, id));
+      fetchExpenses();
+      showAlert("Sucesso", "Gasto removido com sucesso.");
+    } catch (error) {
+      console.error("Erro ao deletar:", error);
+      showAlert("Erro", "Não foi possível deletar o gasto.");
+    }
   };
 
   const showAlert = (title: string, message: string) => {
@@ -131,73 +165,94 @@ const ExpensesScreen: React.FC = () => {
         </View>
       </Modal>
 
-      {/* Lista de gastos usando FlashList */}
       <FlashList
         data={expensesList}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
+        estimatedItemSize={80}
         renderItem={({ item }) => (
-          <ExpenseItem
-            title={item.title}
-            amount={item.amount}
-            parcelas={item.parcelas}
-            type={item.type}
-          />
+          <View style={styles.itemRow}>
+            <View style={{ flex: 1 }}>
+              <ExpenseItem
+                title={item.title}
+                amount={item.amount}
+                parcelas={item.parcelas}
+                type={item.type}
+              />
+            </View>
+            <TouchableOpacity
+              onPress={() => deleteExpense(item.id)}
+              style={styles.trashButton}
+            >
+              <Text style={styles.trashIcon}>🗑️</Text>
+            </TouchableOpacity>
+          </View>
         )}
-        estimatedItemSize={80} // Tamanho estimado do item para melhor performance
       />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#f5f5f5" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    marginVertical: 5,
-    borderRadius: 5,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginVertical: 5,
-  },
+  container: { flex: 1 },
   addButton: {
-    backgroundColor: "blue",
+    backgroundColor: "#4CAF50",
     padding: 15,
+    margin: 10,
     borderRadius: 10,
     alignItems: "center",
-    marginBottom: 10,
   },
   addButtonText: {
-    color: "white",
-    fontSize: 18,
+    color: "#fff",
     fontWeight: "bold",
+    fontSize: 16,
   },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: "#fff",
+    margin: 20,
     padding: 20,
     borderRadius: 10,
-    width: "90%",
-    alignItems: "center",
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
+    marginBottom: 10,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    marginBottom: 10,
+    padding: 10,
+    borderRadius: 5,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
     marginBottom: 10,
   },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "100%",
-    marginTop: 10,
+  },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  trashButton: {
+    padding: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  trashIcon: {
+    fontSize: 18,
+    color: "red",
   },
 });
 
